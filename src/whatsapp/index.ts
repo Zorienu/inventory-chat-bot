@@ -33,10 +33,41 @@ async function sendTextMessage(to: string, message: string) {
 
     console.log("Mensaje enviado con éxito:", response.data.messages[0].id);
   } catch (error) {
-    console.error("Error enviando mensaje:", error);
+    console.error(
+      "Error enviando mensaje:",
+      (error as any).response.data.error || error,
+    );
+  }
+}
+
+async function sendTemplateMessage(to: string) {
+  try {
+    const url = `https://graph.facebook.com/${VERSION}/${PHONE_NUMBER_ID}/messages`;
+
+    const data = {
+      messaging_product: "whatsapp",
+      to,
+      type: "template",
+      template: { name: "hello_world", language: { code: "en_US" } },
+    };
+
+    const response = await axios.post<SendMessageResponse>(url, data, {
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    console.log("Mensaje enviado con éxito:", response.data.messages[0].id);
+  } catch (error) {
+    console.error(
+      "Error enviando mensaje:",
+      (error as any).response.data.error || error,
+    );
   }
 }
 
 export const whatsapp = {
-  sendTextMessage
-}
+  sendTextMessage,
+  sendTemplateMessage,
+};
