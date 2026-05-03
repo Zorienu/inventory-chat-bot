@@ -10,7 +10,18 @@ interface SendMessageResponse {
   messages: { id: string }[];
 }
 
+function assertCreds() {
+  if (!WHATSAPP_TOKEN) {
+    throw new Error("No Whatsapp token defined");
+  }
+
+  if (!PHONE_NUMBER_ID) {
+    throw new Error("No Phone Number ID defined");
+  }
+}
+
 async function sendTextMessage(to: string, message: string) {
+  assertCreds();
   try {
     const url = `https://graph.facebook.com/${VERSION}/${PHONE_NUMBER_ID}/messages`;
 
@@ -41,6 +52,7 @@ async function sendTextMessage(to: string, message: string) {
 }
 
 async function sendTemplateMessage(to: string) {
+  assertCreds();
   try {
     const url = `https://graph.facebook.com/${VERSION}/${PHONE_NUMBER_ID}/messages`;
 
