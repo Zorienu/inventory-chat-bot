@@ -37,6 +37,6 @@ async function sendTextMessage(to: string, message: string) {
   }
 }
 
-const whatsapp = {
+export const whatsapp = {
   sendTextMessage
 }
