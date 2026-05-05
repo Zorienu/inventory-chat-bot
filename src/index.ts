@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import express from "express";
+import { initDB } from "./db";
 import { whatsapp } from "./whatsapp";
 import { createProduct, addStock, sellStock, getReport } from "./inventory";
 
@@ -39,44 +40,45 @@ app.post("/webhook", async (req, res) => {
   const from: string = message.from;
   const text: string = message.text.body.trim();
 
-  const reply = parseCommand(text);
+  const reply = await parseCommand(from, text);
   console.log(`[${from}] ${text} → ${reply}`);
 
   await whatsapp.sendTextMessage(from, reply);
   res.sendStatus(200);
 });
 
-function parseCommand(text: string): string {
+async function parseCommand(userId: string, text: string): Promise<string> {
   let match: RegExpMatchArray | null;
 
   match = text.match(/^Crear producto (.+?) \$(\d+(?:[.,]\d+)?)$/i);
   if (match) {
     const name = match[1].trim();
     const price = parseFloat(match[2].replace(",", "."));
-    return createProduct(name, price);
+    return createProduct(userId, name, price);
   }
 
   match = text.match(/^Agregar (\d+) de (.+)$/i);
   if (match) {
-    const qty = parseInt(match[1], 10);
-    const name = match[2].trim();
-    return addStock(name, qty);
+    return addStock(userId, match[2].trim(), parseInt(match[1], 10));
   }
 
   match = text.match(/^Vend[ií] (\d+) de (.+)$/i);
   if (match) {
-    const qty = parseInt(match[1], 10);
-    const name = match[2].trim();
-    return sellStock(name, qty);
+    return sellStock(userId, match[2].trim(), parseInt(match[1], 10));
   }
 
   if (/^Reporte$/i.test(text)) {
-    return getReport();
+    return getReport(userId);
   }
 
   return "Comando no reconocido. Ejemplos:\n- Crear producto Nombre $1000\n- Agregar 10 de Nombre\n- Vendí 5 de Nombre\n- Reporte";
 }
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+initDB()
+  .then(() => {
+    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  })
+  .catch((err) => {
+    console.error("Failed to initialize database:", err);
+    process.exit(1);
+  });
