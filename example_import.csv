@@ -1,0 +1,11 @@
+nombre,precio,stock,alerta_minima
+Café americano,2500,80,10
+Café con leche,3000,60,8
+Capuchino,4000,40,5
+Tinto,1500,120,15
+Aromática,2000,90,10
+Chocolate caliente,3500,30,5
+Jugo de naranja,3000,50,8
+Croissant,3500,25,5
+Empanada,2000,100,20
+Pandebono,1500,80,

@@ -18,6 +18,7 @@ import {
   getLowStock,
 } from "./inventory";
 import { generateSpreadsheet } from "./spreadsheet";
+import { importFromCSV } from "./csv-import";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -46,11 +47,29 @@ app.post("/webhook", async (req, res) => {
   const body = req.body;
 
   const message = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
-  if (!message || message.type !== "text") {
+  if (!message) return res.sendStatus(200);
+
+  const from: string = message.from;
+
+  if (message.type === "document") {
+    const { id: mediaId, filename = "" } = message.document;
+    if (!filename.endsWith(".csv")) {
+      await whatsapp.sendTextMessage(from, "Solo acepto archivos .csv para importar productos.");
+      return res.sendStatus(200);
+    }
+    try {
+      const buffer = await whatsapp.downloadMedia(mediaId);
+      const reply = await importFromCSV(from, buffer);
+      await whatsapp.sendTextMessage(from, reply);
+    } catch (err) {
+      console.error("Error importando CSV:", err);
+      await whatsapp.sendTextMessage(from, "Ocurrió un error procesando el archivo.");
+    }
     return res.sendStatus(200);
   }
 
-  const from: string = message.from;
+  if (message.type !== "text") return res.sendStatus(200);
+
   const text: string = message.text.body.trim();
 
   if (/^Descargar inventario$/i.test(text)) {

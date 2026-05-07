@@ -128,9 +128,25 @@ async function sendDocument(to: string, mediaId: string, filename: string, capti
   }
 }
 
+async function downloadMedia(mediaId: string): Promise<Buffer> {
+  assertCreds();
+  const { data: meta } = await axios.get<{ url: string }>(
+    `https://graph.facebook.com/${VERSION}/${mediaId}`,
+    { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } }
+  );
+
+  const { data } = await axios.get<ArrayBuffer>(meta.url, {
+    headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
+    responseType: "arraybuffer",
+  });
+
+  return Buffer.from(data);
+}
+
 export const whatsapp = {
   sendTextMessage,
   sendTemplateMessage,
   uploadMedia,
   sendDocument,
+  downloadMedia,
 };
