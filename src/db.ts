@@ -31,4 +31,9 @@ export async function initDB() {
       created_at  TIMESTAMP NOT NULL DEFAULT NOW()
     );
   `);
+
+  await pool.query(`
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS low_stock_threshold INTEGER;
+    ALTER TABLE inventory_history ADD COLUMN IF NOT EXISTS unit_price NUMERIC;
+  `);
 }

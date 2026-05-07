@@ -4,7 +4,15 @@ dotenv.config();
 import express from "express";
 import { initDB } from "./db";
 import { whatsapp } from "./whatsapp";
-import { createProduct, addStock, sellStock, getReport } from "./inventory";
+import {
+  createProduct,
+  updatePrice,
+  setThreshold,
+  addStock,
+  sellStock,
+  getReport,
+  getSalesReport,
+} from "./inventory";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -52,9 +60,17 @@ async function parseCommand(userId: string, text: string): Promise<string> {
 
   match = text.match(/^Crear producto (.+?) \$(\d+(?:[.,]\d+)?)$/i);
   if (match) {
-    const name = match[1].trim();
-    const price = parseFloat(match[2].replace(",", "."));
-    return createProduct(userId, name, price);
+    return createProduct(userId, match[1].trim(), parseFloat(match[2].replace(",", ".")));
+  }
+
+  match = text.match(/^Actualizar precio (.+?) \$(\d+(?:[.,]\d+)?)$/i);
+  if (match) {
+    return updatePrice(userId, match[1].trim(), parseFloat(match[2].replace(",", ".")));
+  }
+
+  match = text.match(/^Alerta (.+?) (\d+)$/i);
+  if (match) {
+    return setThreshold(userId, match[1].trim(), parseInt(match[2], 10));
   }
 
   match = text.match(/^Agregar (\d+) de (.+)$/i);
@@ -67,11 +83,30 @@ async function parseCommand(userId: string, text: string): Promise<string> {
     return sellStock(userId, match[2].trim(), parseInt(match[1], 10));
   }
 
+  match = text.match(/^Ventas (hoy|esta semana|este mes)$/i);
+  if (match) {
+    const periodMap: Record<string, "hoy" | "semana" | "mes"> = {
+      hoy: "hoy",
+      "esta semana": "semana",
+      "este mes": "mes",
+    };
+    return getSalesReport(userId, periodMap[match[1].toLowerCase()]);
+  }
+
   if (/^Reporte$/i.test(text)) {
     return getReport(userId);
   }
 
-  return "Comando no reconocido. Ejemplos:\n- Crear producto Nombre $1000\n- Agregar 10 de Nombre\n- Vendí 5 de Nombre\n- Reporte";
+  return [
+    "Comando no reconocido. Comandos disponibles:",
+    "- Crear producto [nombre] $[precio]",
+    "- Actualizar precio [nombre] $[precio]",
+    "- Alerta [nombre] [cantidad mínima]",
+    "- Agregar [cantidad] de [nombre]",
+    "- Vendí [cantidad] de [nombre]",
+    "- Ventas hoy / esta semana / este mes",
+    "- Reporte",
+  ].join("\n");
 }
 
 initDB()

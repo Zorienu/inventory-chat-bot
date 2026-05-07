@@ -1,6 +1,7 @@
 import { pool } from "./db";
 
 const TYPE = { ADD: "ADD", SELL: "SELL" } as const;
+type Period = "hoy" | "semana" | "mes";
 
 async function getProduct(userId: string, name: string) {
   const { rows } = await pool.query(
@@ -36,6 +37,25 @@ export async function createProduct(userId: string, name: string, price: number)
   return `Creaste producto "${name}" con un precio de $${price}`;
 }
 
+export async function updatePrice(userId: string, name: string, price: number): Promise<string> {
+  const product = await getProduct(userId, name);
+  if (!product) return `El producto "${name}" no existe`;
+
+  await pool.query("UPDATE products SET price = $1 WHERE id = $2", [price, product.id]);
+  await pool.query("INSERT INTO price_history (product_id, price) VALUES ($1, $2)", [product.id, price]);
+
+  return `Actualizaste el precio de "${product.name}" a $${price}`;
+}
+
+export async function setThreshold(userId: string, name: string, threshold: number): Promise<string> {
+  const product = await getProduct(userId, name);
+  if (!product) return `El producto "${name}" no existe`;
+
+  await pool.query("UPDATE products SET low_stock_threshold = $1 WHERE id = $2", [threshold, product.id]);
+
+  return `Alerta configurada para "${product.name}": te avisaré cuando queden menos de ${threshold} unidades`;
+}
+
 export async function addStock(userId: string, name: string, qty: number): Promise<string> {
   const product = await getProduct(userId, name);
   if (!product) return `El producto "${name}" no existe`;
@@ -56,11 +76,18 @@ export async function sellStock(userId: string, name: string, qty: number): Prom
   if (stock < qty) return `Stock insuficiente de "${product.name}". Stock actual: ${stock}`;
 
   await pool.query(
-    "INSERT INTO inventory_history (product_id, type, quantity) VALUES ($1, $2, $3)",
-    [product.id, TYPE.SELL, qty]
+    "INSERT INTO inventory_history (product_id, type, quantity, unit_price) VALUES ($1, $2, $3, $4)",
+    [product.id, TYPE.SELL, qty, product.price]
   );
 
-  return `Vendiste ${qty} unidades de "${product.name}"`;
+  const newStock = stock - qty;
+  let reply = `Vendiste ${qty} unidades de "${product.name}"`;
+
+  if (product.low_stock_threshold !== null && newStock <= product.low_stock_threshold) {
+    reply += `\n\n⚠️ Stock bajo de "${product.name}": ${newStock} unidades restantes`;
+  }
+
+  return reply;
 }
 
 export async function getReport(userId: string): Promise<string> {
@@ -79,4 +106,39 @@ export async function getReport(userId: string): Promise<string> {
 
   const lines = rows.map((r) => `- ${r.name}: ${r.stock} unidades`).join("\n");
   return `Tienes:\n${lines}`;
+}
+
+export async function getSalesReport(userId: string, period: Period): Promise<string> {
+  const intervals: Record<Period, string> = {
+    hoy: "1 day",
+    semana: "7 days",
+    mes: "30 days",
+  };
+
+  const labels: Record<Period, string> = {
+    hoy: "hoy",
+    semana: "esta semana",
+    mes: "este mes",
+  };
+
+  const { rows } = await pool.query(
+    `SELECT p.name,
+            SUM(ih.quantity)::int AS units,
+            SUM(ih.quantity * ih.unit_price) AS revenue
+     FROM inventory_history ih
+     JOIN products p ON p.id = ih.product_id
+     WHERE p.user_id = $1
+       AND ih.type = 'SELL'
+       AND ih.unit_price IS NOT NULL
+       AND ih.created_at >= NOW() - INTERVAL '${intervals[period]}'
+     GROUP BY p.name
+     ORDER BY revenue DESC`,
+    [userId]
+  );
+
+  if (rows.length === 0) return `No hubo ventas ${labels[period]}`;
+
+  const lines = rows.map((r) => `- ${r.name}: ${r.units} unidades — $${r.revenue}`).join("\n");
+  const total = rows.reduce((sum: number, r: any) => sum + parseFloat(r.revenue), 0);
+  return `Ventas de ${labels[period]}:\n${lines}\nTotal: $${total}`;
 }
