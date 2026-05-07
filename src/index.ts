@@ -13,6 +13,7 @@ import {
   getReport,
   getSalesReport,
 } from "./inventory";
+import { generateSpreadsheet } from "./spreadsheet";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -47,6 +48,19 @@ app.post("/webhook", async (req, res) => {
 
   const from: string = message.from;
   const text: string = message.text.body.trim();
+
+  if (/^Descargar inventario$/i.test(text)) {
+    try {
+      const buffer = await generateSpreadsheet(from);
+      const filename = `inventario_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      const mediaId = await whatsapp.uploadMedia(buffer, filename, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      await whatsapp.sendDocument(from, mediaId, filename, "Tu inventario actualizado");
+    } catch (err) {
+      console.error("Error generando spreadsheet:", err);
+      await whatsapp.sendTextMessage(from, "Ocurrió un error generando el archivo. Intenta de nuevo.");
+    }
+    return res.sendStatus(200);
+  }
 
   const reply = await parseCommand(from, text);
   console.log(`[${from}] ${text} → ${reply}`);
@@ -106,6 +120,7 @@ async function parseCommand(userId: string, text: string): Promise<string> {
     "- Vendí [cantidad] de [nombre]",
     "- Ventas hoy / esta semana / este mes",
     "- Reporte",
+    "- Descargar inventario",
   ].join("\n");
 }
 

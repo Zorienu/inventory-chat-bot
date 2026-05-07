@@ -1,4 +1,5 @@
 import axios from "axios";
+import FormData from "form-data";
 
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
@@ -79,7 +80,57 @@ async function sendTemplateMessage(to: string) {
   }
 }
 
+async function uploadMedia(buffer: Buffer, filename: string, mimeType: string): Promise<string> {
+  assertCreds();
+  const url = `https://graph.facebook.com/${VERSION}/${PHONE_NUMBER_ID}/media`;
+
+  const form = new FormData();
+  form.append("messaging_product", "whatsapp");
+  form.append("type", mimeType);
+  form.append("file", buffer, { filename, contentType: mimeType });
+
+  const response = await axios.post<{ id: string }>(url, form, {
+    headers: {
+      Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+      ...form.getHeaders(),
+    },
+  });
+
+  return response.data.id;
+}
+
+async function sendDocument(to: string, mediaId: string, filename: string, caption?: string) {
+  assertCreds();
+  try {
+    const url = `https://graph.facebook.com/${VERSION}/${PHONE_NUMBER_ID}/messages`;
+
+    const data = {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to,
+      type: "document",
+      document: { id: mediaId, filename, caption },
+    };
+
+    const response = await axios.post<SendMessageResponse>(url, data, {
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    console.log("Documento enviado con éxito:", response.data.messages[0].id);
+  } catch (error) {
+    console.error(
+      "Error enviando documento:",
+      (error as any).response?.data?.error || error,
+    );
+  }
+}
+
 export const whatsapp = {
   sendTextMessage,
   sendTemplateMessage,
+  uploadMedia,
+  sendDocument,
 };
