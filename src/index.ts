@@ -69,6 +69,19 @@ app.post("/webhook", async (req, res) => {
   res.sendStatus(200);
 });
 
+const HELP_MESSAGE = [
+  "Comandos disponibles:",
+  "- Crear producto [nombre] $[precio]",
+  "- Actualizar precio [nombre] $[precio]",
+  "- Alerta [nombre] [cantidad mínima]",
+  "- Agregar [cantidad] de [nombre]",
+  "- Vendí [cantidad] de [nombre]",
+  "- Ventas hoy / esta semana / este mes",
+  "- Reporte",
+  "- Descargar inventario",
+  "- Ayuda",
+].join("\n");
+
 async function parseCommand(userId: string, text: string): Promise<string> {
   let match: RegExpMatchArray | null;
 
@@ -111,17 +124,11 @@ async function parseCommand(userId: string, text: string): Promise<string> {
     return getReport(userId);
   }
 
-  return [
-    "Comando no reconocido. Comandos disponibles:",
-    "- Crear producto [nombre] $[precio]",
-    "- Actualizar precio [nombre] $[precio]",
-    "- Alerta [nombre] [cantidad mínima]",
-    "- Agregar [cantidad] de [nombre]",
-    "- Vendí [cantidad] de [nombre]",
-    "- Ventas hoy / esta semana / este mes",
-    "- Reporte",
-    "- Descargar inventario",
-  ].join("\n");
+  if (/^Ayuda$/i.test(text)) {
+    return HELP_MESSAGE;
+  }
+
+  return `Comando no reconocido.\n\n${HELP_MESSAGE}`;
 }
 
 initDB()
