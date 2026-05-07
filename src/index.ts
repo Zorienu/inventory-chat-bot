@@ -106,6 +106,7 @@ const HELP_MESSAGE = [
   "- Top ventas",
   "- Ventas hoy / esta semana / este mes",
   "- Descargar inventario",
+  "- Importar productos: enviá un archivo .csv con columnas nombre, precio, stock, alerta_minima (opcional)",
   "- Ayuda",
 ].join("\n");
 
