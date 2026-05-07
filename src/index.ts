@@ -6,12 +6,16 @@ import { initDB } from "./db";
 import { whatsapp } from "./whatsapp";
 import {
   createProduct,
+  deleteProduct,
+  renameProduct,
   updatePrice,
   setThreshold,
   addStock,
   sellStock,
   getReport,
   getSalesReport,
+  getTopSales,
+  getLowStock,
 } from "./inventory";
 import { generateSpreadsheet } from "./spreadsheet";
 
@@ -72,12 +76,16 @@ app.post("/webhook", async (req, res) => {
 const HELP_MESSAGE = [
   "Comandos disponibles:",
   "- Crear producto [nombre] $[precio]",
+  "- Eliminar producto [nombre]",
+  "- Renombrar [nombre] a [nuevo nombre]",
   "- Actualizar precio [nombre] $[precio]",
   "- Alerta [nombre] [cantidad mínima]",
   "- Agregar [cantidad] de [nombre]",
   "- Vendí [cantidad] de [nombre]",
-  "- Ventas hoy / esta semana / este mes",
   "- Reporte",
+  "- Sin stock",
+  "- Top ventas",
+  "- Ventas hoy / esta semana / este mes",
   "- Descargar inventario",
   "- Ayuda",
 ].join("\n");
@@ -88,6 +96,16 @@ async function parseCommand(userId: string, text: string): Promise<string> {
   match = text.match(/^Crear producto (.+?) \$(\d+(?:[.,]\d+)?)$/i);
   if (match) {
     return createProduct(userId, match[1].trim(), parseFloat(match[2].replace(",", ".")));
+  }
+
+  match = text.match(/^Eliminar producto (.+)$/i);
+  if (match) {
+    return deleteProduct(userId, match[1].trim());
+  }
+
+  match = text.match(/^Renombrar (.+) a (.+)$/i);
+  if (match) {
+    return renameProduct(userId, match[1].trim(), match[2].trim());
   }
 
   match = text.match(/^Actualizar precio (.+?) \$(\d+(?:[.,]\d+)?)$/i);
@@ -122,6 +140,14 @@ async function parseCommand(userId: string, text: string): Promise<string> {
 
   if (/^Reporte$/i.test(text)) {
     return getReport(userId);
+  }
+
+  if (/^Sin stock$/i.test(text)) {
+    return getLowStock(userId);
+  }
+
+  if (/^Top ventas$/i.test(text)) {
+    return getTopSales(userId);
   }
 
   if (/^Ayuda$/i.test(text)) {
